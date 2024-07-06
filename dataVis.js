@@ -1,16 +1,12 @@
-// scatterplot axes
 let xAxis, yAxis, xAxisLabel, yAxisLabel, data, x, y;
 let channels = ["scatterX", "scatterY", "size"]; // Define channels here
-// TO do
-// *fix the legends column that corresponds to the chosen axis: in cars we have: point.Name  
-// *fix the initialization: after changing the dataset all the data vis should be reset
-// * add a filter of number of rows, visible number of rows
-
+let selectedPoints = new Map(); // Map to keep track of selected points
+var parsedData;
 function init() {
     // define size of plots
-    margin = {top: 20, right: 20, bottom: 20, left: 50};
+    margin = {top: 10, right: 10, bottom: 10, left: 50};
     width = 600;
-    height = 500;
+    height = 600;
     radius = width / 2;
 
     // Start at default tab
@@ -18,7 +14,7 @@ function init() {
 
     // data table
     dataTable = d3.select('#dataTable');
-
+ 
     // scatterplot SVG container and axes
     scatter = d3.select("#sp").append("svg")
         .attr("width", width)
@@ -34,41 +30,32 @@ function init() {
 
     // read and parse input file
     let fileInput = document.getElementById("upload"), readFile = function () {
-
-        // clear existing visualizations
         clear();
-
         let reader = new FileReader();
         reader.onloadend = function () {
-            // Parse CSV data using d3-dsv
             let csvData = reader.result;
-            let parsedData = d3.csvParse(csvData, d3.autoType);
-
-            // Extract numerical attributes and store them in the dimensions array
+            parsedData = d3.csvParse(csvData, d3.autoType);
             dimensions = Object.keys(parsedData[0]).filter(key => !isNaN(parsedData[0][key]));
-
-                       
-            // Call the initVis function with the parsed data
+            console.log("Numerical attributes:", dimensions);
             initVis(parsedData);
+            initDashboard(parsedData);
             CreateDataTable(parsedData);
+            initDashboard(null); // Adjust this call as necessary
         };
         reader.readAsBinaryString(fileInput.files[0]);
     };
     fileInput.addEventListener('change', readFile);
 }
 
+function getParsedData () {
+    return parsedData;
+}
+
 function initVis(_data) {
     data = _data;
+    y = d3.scaleLinear().range([height - margin.bottom - margin.top, margin.top]);
+    x = d3.scaleLinear().range([margin.left, width - margin.left - margin.right]);
 
-    // y scalings for scatterplot
-    y = d3.scaleLinear()
-        .range([height - margin.bottom - margin.top, margin.top]);
-
-    // x scalings for scatter plot
-    x = d3.scaleLinear()
-        .range([margin.left, width - margin.left - margin.right]);
-
-    // scatterplot axes
     yAxis = scatter.append("g")
         .attr("class", "axis")
         .attr("transform", "translate(" + margin.left + ")")
@@ -89,43 +76,13 @@ function initVis(_data) {
         .attr("x", width - margin.right)
         .text("y");
 
-    // radar chart axes
     radarAxesAngle = Math.PI * 2 / dimensions.length;
-    let axisRadius = d3.scaleLinear()
-        .range([0, radius]);
+    let axisRadius = d3.scaleLinear().range([0, radius]);
     let maxAxisRadius = 0.75,
         textRadius = 0.8;
     gridRadius = 0.1;
 
-    // radar axes
-    radarAxes = radar.selectAll(".axis")
-        .data(dimensions)
-        .enter()
-        .append("g")
-        .attr("class", "axis");
-
-    radarAxes.append("line")
-        .attr("x1", 0)
-        .attr("y1", 0)
-        .attr("x2", function(d, i){ return radarX(axisRadius(maxAxisRadius), i); })
-        .attr("y2", function(d, i){ return radarY(axisRadius(maxAxisRadius), i); })
-        .attr("class", "line")
-        .style("stroke", "black");
-    
-    // TODO: render grid lines in gray
-
-    // TODO: render correct axes labels
-    radar.selectAll(".axisLabel")
-        .data(dimensions)
-        .enter()
-        .append("text")
-        .attr("text-anchor", "middle")
-        .attr("dy", "0.35em")
-        .attr("x", function(d, i){ return radarX(axisRadius(textRadius), i); })
-        .attr("y", function(d, i){ return radarY(axisRadius(textRadius), i); })
-        .text("dimension");
-
-
+    // Initialize menu for the visual channels
     channels.forEach(function(c){
         initMenu(c, dimensions);
     });
@@ -135,109 +92,110 @@ function initVis(_data) {
     });
 
     renderScatterplot();
-    renderRadarChart(); // Uncomment if radar chart implementation is needed
+    renderRadarGrid();
+    renderRadarAxes();
 }
 
-function clear() {
+// clear visualizations before loading a new file
+function clear(){
     scatter.selectAll("*").remove();
     radar.selectAll("*").remove();
     dataTable.selectAll("*").remove();
 }
 
+// Create Table
 function CreateDataTable(_data) {
     if (!_data || _data.length === 0) {
-        console.error("No data available to create table");
+        console.error("No data provided.");
         return;
     }
 
-    dataTable.selectAll("*").remove();
+    let tableContainer = document.getElementById("dataTable");
+    let table = document.createElement("table");
+    table.classList.add("dataTableClass");
+    tableContainer.appendChild(table);
 
-    let table = dataTable.append("table").attr("class", "dataTableClass");
+    let headers = Object.keys(_data[0]);
+    let thead = table.createTHead();
+    let headerRow = thead.insertRow();
+    headers.forEach(headerText => {
+        let th = document.createElement("th");
+        th.textContent = headerText;
+        th.classList.add("tableHeaderClass");
+        headerRow.appendChild(th);
+    });
 
-    let headers = table.append("thead").append("tr");
-    headers.selectAll("th")
-        .data(Object.keys(_data[0]))
-        .enter()
-        .append("th")
-        .attr("class", "tableHeaderClass")
-        .text(d => d);
-
-    let rows = table.append("tbody").selectAll("tr")
-        .data(_data)
-        .enter()
-        .append("tr")
-        .attr("class", "tableBodyClass");
-
-    let cells = rows.selectAll("td")
-        .data(d => Object.values(d))
-        .enter()
-        .append("td")
-        .attr("class", "tableBodyClass")
-        .text(d => d)
-        .on("mouseover", function() {
-            d3.select(this).style("background-color", "lightgrey");
-        })
-        .on("mouseout", function() {
-            d3.select(this).style("background-color", "white");
+    let tbody = document.createElement("tbody");
+    _data.forEach(rowData => {
+        let row = tbody.insertRow();
+        headers.forEach(header => {
+            let cell = row.insertCell();
+            cell.textContent = rowData[header];
+            cell.classList.add("tableBodyClass");
         });
-}
+    });
+    table.appendChild(tbody);
 
-
-///--------------------Scatterplot chart ---------------------------------------------
-
-function renderScatterplot() {
-    let xVar = readMenu('scatterX');
-    let yVar = readMenu('scatterY');
-    let sizeVar = readMenu('size');
-
-    x.domain(d3.extent(data, d => d[xVar])).nice();
-    y.domain(d3.extent(data, d => d[yVar])).nice();
-
-    let size = d3.scaleLinear()
-        .domain(d3.extent(data, d => +d[sizeVar]))
-        .range([3, 10]);
-
-    let opacity = d3.scaleLinear()
-        .domain(d3.extent(data, d => +d[sizeVar]))
-        .range([0.3, 1]);
-
-    xAxis.call(d3.axisBottom(x));
-    yAxis.call(d3.axisLeft(y));
-
-    xAxisLabel.text(xVar);
-    yAxisLabel.text(yVar);
-
-    let circles = scatter.selectAll(".dot")
-        .data(data);
-
-    circles.enter().append("circle")
-        .attr("class", "dot")
-        .merge(circles)
-        .attr("cx", d => x(d[xVar]))
-        .attr("cy", d => y(d[yVar]))
-        .attr("r", d => size(d[sizeVar]))
-        .style("fill", d => selectedPoints.has(d) ? selectedPoints.get(d) : "black") // Apply selected color or default
-        .style("fill-opacity", d => opacity(d[sizeVar]))
-        .on("click", handlePointClick); // click event listener 
-
-    circles.exit().remove();
-}
-
-///-----------------------Select the points and display them in the legend----------------------
-let selectedPoints = new Map();
-let maxSelectedPoints = 10; // maximum points to select
-let colors = d3.schemeCategory10; // color scheme for the selected points
-
-function handlePointClick(event, d) {
-    if (selectedPoints.has(d)){
-        selectedPoints.delete(d);
-        d3.select(event.target).style("fill", "black");
-    } else if (selectedPoints.size < maxSelectedPoints) {
-        if (!selectedPoints.has(d)) {
-            let color = colors[selectedPoints.size];
-            selectedPoints.set(d, color);
-            d3.select(event.target).style("fill", color);
+    tbody.addEventListener("mouseover", function(event) {
+        let targetCell = event.target.closest("td");
+        if (targetCell) {
+            targetCell.classList.add("hovered-cell");
         }
+    });
+
+    tbody.addEventListener("mouseout", function(event) {
+        let targetCell = event.target.closest("td");
+        if (targetCell) {
+            targetCell.classList.remove("hovered-cell");
+        }
+    });
+}
+
+function updateLegend() {
+    // Remove existing legend items
+    d3.select("#legend").selectAll("*").remove();
+
+    // Append legend items for selected points
+    selectedPoints.forEach((color, point) => {
+        let legendItem = d3.select("#legend").append("div")
+            .style("display", "flex")
+            .style("align-items", "center")
+            .style("cursor", "pointer");
+
+        legendItem.append("div")
+            .style("width", "20px")
+            .style("height", "20px")
+            .style("background-color", color)
+            .style("margin-right", "5px");
+
+        legendItem.append("span")
+            .text(point.LOCATIONS);
+
+        // Add "x" button to remove the item
+        legendItem.append("span")
+            .text(" x")
+            .attr("class", "close")
+            .style("margin-left", "10px")
+            .style("color", "black")
+            .style("cursor", "pointer")
+            .on("click", () => toggleLegendItem(point));
+    });
+}
+
+function toggleLegendItem(point) {
+    if (selectedPoints.has(point)) {
+        selectedPoints.delete(point);
+        // Reset the color of the corresponding point in the scatter plot to black
+        scatter.selectAll(".dot")
+            .filter(d => d === point)
+            .style("fill", "black");
+    } else if (selectedPoints.size < maxSelectedPoints) {
+        let color = colors[selectedPoints.size];
+        selectedPoints.set(point, color);
+        // Set the color of the corresponding point in the scatter plot
+        scatter.selectAll(".dot")
+            .filter(d => d === point)
+            .style("fill", color);
     } else {
         alert(`You can only select up to ${maxSelectedPoints} points.`);
     }
@@ -245,68 +203,175 @@ function handlePointClick(event, d) {
     renderRadarChart();
 }
 
+function handlePointClick(d, element) {
+    if (selectedPoints.has(d)) {
+        selectedPoints.delete(d);
+        element.style("fill", "black");
+    } else {
+        let color = d3.schemeCategory10[selectedPoints.size % 10];
+        selectedPoints.set(d, color);
+        element.style("fill", color);
+    }
+    updateLegend();
+    renderRadarChart(); // Update radar chart when a point is clicked
+}
 
-function updateLegend() {
-    // Remove existing legend
-    d3.select("#legend").selectAll("*").remove();
+function renderScatterplot() {
+    let xAttribute = readMenu("scatterX");
+    let yAttribute = readMenu("scatterY");
+    let sizeAttribute = readMenu("size");
 
-    // Append legend items for selected points
-    selectedPoints.forEach((color, point) => {
-        let legendItem = d3.select("#legend").append("div")
-            .style("color", color)
-            .style("align-items", "center");
+    // Calculate the domain for x and y scales based on the data
+    let xExtent = d3.extent(data, d => d[xAttribute]);
+    let yExtent = d3.extent(data, d => d[yAttribute]);
 
-        legendItem.append("div")
-            .style("width", "10px")
-            .style("height", "10px")
-            .style("background-color", color)
-            .style("margin-right", "5px");
+    // Add some padding to extend the domain and accommodate negative values
+    let padding = 10;
 
-        legendItem.append("span")
-            .text(point.Name); // Display the point's name or ID in the legend
+    // Adjust x domain to include negative and positive values
+    let xDomain = [
+        Math.min(xExtent[0], 0) - padding,
+        Math.max(xExtent[1], 0) + padding
+    ];
 
-        legendItem.append("span")
-            .attr("class", "close")
-            .text("x")
-            .on("click", () =>{
-                selectedPoints.delete(point);
-                renderScatterplot();
-                updateLegend();
-            });
-    });
+    // Adjust y domain to include negative and positive values
+    let yDomain = [
+        Math.min(yExtent[0], 0) - padding,
+        Math.max(yExtent[1], 0) + padding
+    ];
+
+    x.domain(xDomain).nice();
+    y.domain(yDomain).nice();
+
+    // Debugging: log the domains to verify they are set correctly
+    console.log("x domain:", x.domain());
+    console.log("y domain:", y.domain());
+
+    // Update the axes with the new scales
+    xAxis.transition().call(d3.axisBottom(x));
+    yAxis.transition().call(d3.axisLeft(y));
+
+    // Create a size scale for the scatterplot points
+    let sizeScale = d3.scaleLinear()
+        .domain(d3.extent(data, d => d[sizeAttribute]))
+        .range([3, 10]);
+
+    // Update the axis labels
+    xAxisLabel.text(xAttribute);
+    yAxisLabel.text(yAttribute);
+
+    // Bind data to the scatterplot points
+    let dots = scatter.selectAll(".dot")
+        .data(data);
+
+    // Enter and update pattern for scatterplot points
+    dots.enter().append("circle")
+        .attr("class", "dot")
+        .merge(dots)
+        .attr("cx", d => x(d[xAttribute]))
+        .attr("cy", d => y(d[yAttribute]))
+        .attr("r", d => sizeScale(d[sizeAttribute]))
+        .attr("opacity", 0.6)
+        .style("fill", d => selectedPoints.has(d) ? selectedPoints.get(d) : "black")
+        .on("click", function(event, d) {
+            handlePointClick(d, d3.select(this));
+        });
+
+    // Remove exiting points
+    dots.exit().remove();
 }
 
 
 
 
+function renderRadarGrid() {
+    let levels = 5; // Number of concentric circles
 
-///-----------------------RADAR CHART------------------------------------------------------------
+    let gridlines = radar.selectAll(".grid")
+        .data(d3.range(1, levels + 1).reverse());
+
+    gridlines.enter()
+        .append("circle")
+        .attr("class", "grid")
+        .merge(gridlines)
+        .attr("r", d => radius / levels * d)
+        .style("stroke", "lightgray")
+        .style("fill", "none");
+
+    gridlines.exit().remove();
+}
+
+function renderRadarAxes() {
+    radarAxesAngle = Math.PI * 2 / dimensions.length;
+
+    let axis = radar.selectAll(".axis")
+        .data(dimensions);
+
+    let axisEnter = axis.enter().append("g")
+        .attr("class", "axis");
+
+    axisEnter.append("line")
+        .merge(axis.select("line"))
+        .attr("x1", 0)
+        .attr("y1", 0)
+        .attr("x2", (d, i) => radarX(radius, i))
+        .attr("y2", (d, i) => radarY(radius, i))
+        .style("stroke", "black");
+
+    axisEnter.append("text")
+        .merge(axis.select("text"))
+        .attr("x", (d, i) => radarX(radius * 1.1, i))
+        .attr("y", (d, i) => radarY(radius * 1.1, i))
+        .style("text-anchor", "middle")
+        .text(d => d);
+
+    axis.exit().remove();
+}
 
 function renderRadarChart() {
-    radar.selectAll(".line").remove(); // Clear previous lines
+    // Remove existing radar lines before drawing new ones
+    radar.selectAll(".radarLine").remove();
+    radar.selectAll(".radarPoint").remove(); // Remove existing radar points before drawing new ones
 
-    let axisRadius = d3.scaleLinear().range([0, radius]);
     selectedPoints.forEach((color, point) => {
-        let lineData = dimensions.map((dim, i) => ({
-            angle: i * radarAxesAngle,
-            value: point[dim],
-            radius: axisRadius(point[dim])
-        }));
+        let pointData = dimensions.map(attr => {
+            let value = point[attr];
+            let extent = d3.extent(data, d => d[attr]);
+            let normalizedValue = (value - extent[0]) / (extent[1] - extent[0]);
+            return { value: normalizedValue, axis: attr };
+        });
 
-        let line = d3.lineRadial()
-            .angle(d => d.angle)
-            .radius(d => d.radius);
+        // Close the shape by adding the first point at the end
+        pointData.push(pointData[0]);
+
+        let radarLine = d3.lineRadial()
+            .radius(d => radius * d.value) // Adjust scaling as necessary
+            .angle((d, i) => i * radarAxesAngle);
 
         radar.append("path")
-            .datum(lineData)
-            .attr("class", "line")
-            .attr("d", line)
+            .datum(pointData)
+            .attr("class", "radarLine")
+            .attr("d", radarLine)
             .style("stroke", color)
-            .style("fill", "none");
+            .style("fill", "none")
+            .style("stroke-width", 2);
+
+        // Add dots for each point on the radar line
+        pointData.forEach((d, i) => {
+            if (i < pointData.length - 1) { // Avoid duplicating the first point added at the end
+                radar.append("circle")
+                    .attr("class", "radarPoint")
+                    .attr("cx", radarX(radius * d.value, i))
+                    .attr("cy", radarY(radius * d.value, i))
+                    .attr("r", 4) // Radius of the points
+                    .style("fill", color)
+                    .style("stroke", "none");
+            }
+        });
     });
 }
 
- function radarX(radius, index){
+function radarX(radius, index){
     return radius * Math.cos(radarAngle(index));
 }
 
@@ -317,29 +382,37 @@ function radarY(radius, index){
 function radarAngle(index){
     return radarAxesAngle * index - Math.PI / 2;
 }
-///----------------------------------------------------------------------------------------------
-function initMenu(id, entries) {
-    $("select#" + id).empty();
 
-    entries.forEach(function (d) {
-        $("select#" + id).append("<option>" + d + "</option>");
+// init scatterplot select menu
+function initMenu(id, entries) {
+    let select = document.getElementById(id);
+    select.innerHTML = '';
+
+    entries.forEach(entry => {
+        let option = document.createElement("option");
+        option.value = entry;
+        option.text = entry;
+        select.appendChild(option);
     });
 
     $("#" + id).selectmenu({
         select: function () {
             renderScatterplot();
         }
-    });
+    }).selectmenu("refresh");
 }
 
-function refreshMenu(id) {
-    $("#" + id).selectmenu("refresh");
+// refresh menu after reloading data
+function refreshMenu(id){
+    $( "#"+id ).selectmenu("refresh");
 }
 
-function readMenu(id) {
-    return $("#" + id).val();
+// read current scatterplot parameters
+function readMenu(id){
+    return $( "#" + id ).val();
 }
 
+// switches and displays the tabs
 function openPage(pageName, elmnt, color) {
     var i, tabcontent, tablinks;
     tabcontent = document.getElementsByClassName("tabcontent");
@@ -353,4 +426,5 @@ function openPage(pageName, elmnt, color) {
     document.getElementById(pageName).style.display = "block";
     elmnt.style.backgroundColor = color;
 }
-document.getElementById("defaultOpen").click();
+
+init(); // Initialize the visualization

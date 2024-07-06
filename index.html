@@ -26,9 +26,9 @@
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script>
 
     <!-- PART 1: include dataVis script -->
-    <script src="dataVis.js"></script>
+    <script  src="dataVis.js"></script>
     <!-- PART 2: include scripts for the dashboard -->
-    <script src="dashboard.js"></script>
+    <script  src="dashboard.js"></script>
 
 </head>
 
@@ -112,12 +112,19 @@
     <div class="dashboardGrid">
 
         <!-- chart 1 -->
-        <div class="container">
-           <h2>Chart 1</h2>
-			<h4>Data representation 1.</h4>
-            <!-- radar chart SVG -->
-            <div id="chart1"></div>
+    <div class="container">
+        <h2>Chart 1</h2>
+        <h4>Data representation 1.</h4>
+        <!-- Dropdown controls for Chart 1 -->
+        <div id="controls">
+            <label for="xAxisSelect">X-Axis:</label>
+            <div id="xDropdown"></div>
+            <label for="yAxisSelect">Y-Axis:</label>
+            <div id="yDropdown"></div>
         </div>
+        <!-- Bar chart SVG -->
+        <div id="chart1"></div>
+    </div>
 
         <!-- chart 2 -->
         <div class="container">
