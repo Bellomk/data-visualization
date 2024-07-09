@@ -20,6 +20,8 @@
 
     <!-- include d3 -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- include topojson -->
+    <script src="https://d3js.org/topojson.v1.min.js"></script>
 
     <!-- include jQueryUI -->
     <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
@@ -39,7 +41,7 @@
 
 <!-- credits -->
 <div id="credits">
-    Created by <span class="instructions">Mohamed Rami Mesfar</span>
+    Created by <span class="instructions">Mohamed Rami Mesfar & Mohamed Elbeltagui</span>
     for the Data Visualization Lecture at <a href="https://www.fim.uni-passau.de/digitale-bildverarbeitung"> Faculty of Computer
     Science and Mathematics - Chair of Cognitive sensor systems - University of Passau</a>.
 </div>
@@ -112,27 +114,29 @@
     <div class="dashboardGrid">
 
         <!-- chart 1 -->
-    <div class="container">
-        <h2>Chart 1</h2>
-        <h4>Data representation 1.</h4>
-        <!-- Dropdown controls for Chart 1 -->
-        <div id="controls">
-            <label for="xAxisSelect">X-Axis:</label>
-            <div id="xDropdown"></div>
-            <label for="yAxisSelect">Y-Axis:</label>
-            <div id="yDropdown"></div>
+        <div class="container">
+            <h2>Chart 1</h2>
+            <h4>Data representation 1.</h4>
+            <div>
+                <label for="xAxisSelect">X-Axis:</label>
+                <div id="xDropdown"></div>
+            </div>
+            <div>
+                <label for="yAxisSelect">Y-Axis:</label>
+                <div id="yDropdown"></div>
+            </div>
+            
+            <div id="chart1"></div>
         </div>
-        <!-- Bar chart SVG -->
-        <div id="chart1"></div>
-    </div>
+        
 
         <!-- chart 2 -->
         <div class="container">
-           <h2>Chart 2</h2>
-			 <h4>Data representation 2.</h4>
-            <!-- radar chart SVG -->
-            <div id="chart2"></div>
+            <h2>Choropleth Map</h2>
+            <div id="choroplethMap"></div>
         </div>
+
+
 
         <!-- chart 3 -->
         <div class="container">

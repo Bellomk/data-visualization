@@ -40,7 +40,6 @@ function init() {
             initVis(parsedData);
             initDashboard(parsedData);
             CreateDataTable(parsedData);
-            initDashboard(null); // Adjust this call as necessary
         };
         reader.readAsBinaryString(fileInput.files[0]);
     };

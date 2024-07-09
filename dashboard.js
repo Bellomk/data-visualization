@@ -1,12 +1,6 @@
-let chart1;
+let chart1, chart2;
 
 function initDashboard(parsedData) {
-    // Ensure parsedData is received correctly
-    if (!parsedData || parsedData.length === 0) {
-        console.error('Parsed data is empty or undefined');
-        return;
-    }
-
     console.log('Parsed Data:', parsedData);
 
     // Dimensions and margins
@@ -25,13 +19,23 @@ function initDashboard(parsedData) {
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
     // Create the first chart with initial x and y attributes
-    const initialXAttr = Object.keys(parsedData[0])[0];
-    const initialYAttr = Object.keys(parsedData[0])[1];
+    const initialXAttr = ["STATE"];
+    const initialYAttr = ["PH"];
     createChart1(parsedData, width, height, margin, initialXAttr, initialYAttr);
+    initChoroplethMap(parsedData);
+    
+    
+    // Initialize chart2 (radar chart)
+
 }
 
+//-----------------------BARCHART----------------------------------------
+
 function createDropdowns(data) {
-    const attributes = Object.keys(data[0]);
+    const attributes = ["Temp","D.O. (mg/l)" ,"PH" ,"CONDUCTIVITY (Âµmhos/cm)" ,"B.O.D. (mg/l)" ,"NITRATENAN N+ NITRITENANN (mg/l)" ,"FECAL COLIFORM (MPN/100ml)", "TOTAL COLIFORM (MPN/100ml)Mean"];
+
+    const StateYear = ['STATE', 'year'];
+    
 
     // Create x-axis dropdown
     const xDropdown = d3.select("#xDropdown")
@@ -40,7 +44,7 @@ function createDropdowns(data) {
         .on("change", updateChart);
 
     xDropdown.selectAll("option")
-        .data(attributes)
+        .data(StateYear)
         .enter()
         .append("option")
         .attr("value", d => d)
@@ -60,6 +64,7 @@ function createDropdowns(data) {
         .text(d => d);
 }
 
+
 function updateChart() {
     // Get selected x and y attributes
     const selectedXAttr = d3.select("#xAxisSelect").node().value;
@@ -74,6 +79,8 @@ function updateChart() {
     const margin = { top: 10, right: 30, bottom: 90, left: 40 };
     createChart1(parsedData, width, height, margin, selectedXAttr, selectedYAttr);
 }
+
+
 
 function createChart1(data, width, height, margin, xAttr, yAttr) {
     // Ensure data is parsed correctly
@@ -102,7 +109,7 @@ function createChart1(data, width, height, margin, xAttr, yAttr) {
         .attr("width", x.bandwidth())
         .attr("y", d => y(d[yAttr]))
         .attr("height", d => height - y(d[yAttr]))
-        .style("fill", "skyblue");
+        .style("fill", "orange");
 
     // Add the x Axis
     chart1.append("g")
@@ -116,6 +123,21 @@ function createChart1(data, width, height, margin, xAttr, yAttr) {
     chart1.append("g")
         .call(d3.axisLeft(y));
 
+    // Add the x-axis label
+    chart1.append("text")
+        .attr("transform", `translate(${width / 2},${height + margin.bottom - 20})`)
+        .style("text-anchor", "middle")
+        .text(xAttr);
+
+    // Add the y-axis label
+    chart1.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0 - margin.left)
+        .attr("x", 0 - (height / 2))
+        .attr("dy", "1em")
+        .style("text-anchor", "middle")
+        .text(yAttr);
+
     // Animation
     chart1.selectAll("rect")
         .transition()
@@ -125,22 +147,68 @@ function createChart1(data, width, height, margin, xAttr, yAttr) {
         .delay((d, i) => i * 100);
 }
 
-function createChart2() {
-    // Implement the chart2 creation logic
+///--------------------Choropleth MAP --------------------------
+
+function initChoroplethMap(parsedData) {
+    const width = 950;
+    const height = 600;
+    const svg = d3.select("#choroplethMap").append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    const projection = d3.geoMercator().center([82.9739, 22.5937]).scale(850);
+    const path = d3.geoPath().projection(projection);
+
+    // Define the tooltip for the choropleth map
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("position", "absolute")
+        .style("visibility", "hidden")
+        .style("background-color", "gray")
+        .style("border", "solid 1px black")
+        .style("padding", "5px");
+
+    d3.json("states_india.geojson").then(geojson => {
+        geojson.features.forEach(feature => {
+            const state = feature.properties.st_nm; 
+            console.log(state);
+            const stateData = parsedData.find(d => d.STATE.trim().toLowerCase() === state.trim().toLowerCase());
+            console.log("HHMMMM : " + stateData);
+            feature.properties.pH = stateData ? +stateData.PH : "No data";
+            console.log(feature.properties.pH);
+        });
+
+       
+
+        const colorScale = d3.scaleSequential(d3.interpolateBlues)
+            .domain(d3.extent(geojson.features, d => d.properties.pH));
+
+        svg.selectAll("path")
+            .data(geojson.features)
+            .enter().append("path")
+            .attr("d", path)
+            .attr("fill", d => colorScale(d.properties.pH))
+            .on("mouseover", function(event, d) {
+                d3.select(this).attr("fill", "orange");
+                tooltip.style("visibility", "visible")
+                    .text(`State: ${d.properties.st_nm}, pH: ${d.properties.pH}`);
+            })
+            .on("mousemove", function(event) {
+                tooltip.style("top", (event.pageY-10)+"px")
+                    .style("left",(event.pageX+10)+"px");
+            })
+            .on("mouseout", function(event, d) {
+                d3.select(this).attr("fill", colorScale(d.properties.pH));
+                tooltip.style("visibility", "hidden");
+            });
+    });
 }
 
-function createChart3() {
-    // Implement the chart3 creation logic
-}
 
-function createChart4() {
-    // Implement the chart4 creation logic
-}
 
-// Clear charts if changes (dataset) occur
+
+
+
 function clearDashboard() {
     if (chart1) chart1.selectAll("*").remove();
-    if (chart2) chart2.selectAll("*").remove();
-    if (chart3) chart3.selectAll("*").remove();
-    if (chart4) chart4.selectAll("*").remove();
 }
