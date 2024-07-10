@@ -1,12 +1,16 @@
-let chart1, chart2;
+let chart1, chart2, radarChart;
+let selectedStates = [];
+
+
+
 
 function initDashboard(parsedData) {
     console.log('Parsed Data:', parsedData);
 
     // Dimensions and margins
     const margin = { top: 10, right: 30, bottom: 90, left: 40 };
-    const width = 460 - margin.left - margin.right;
-    const height = 450 - margin.top - margin.bottom;
+    const width = 600 - margin.left - margin.right;
+    const height = 600 - margin.top - margin.bottom;
 
     // Create dropdowns for x and y axes
     createDropdowns(parsedData);
@@ -24,8 +28,7 @@ function initDashboard(parsedData) {
     createChart1(parsedData, width, height, margin, initialXAttr, initialYAttr);
     initChoroplethMap(parsedData);
     
-    
-    // Initialize chart2 (radar chart)
+ 
 
 }
 
@@ -74,8 +77,8 @@ function updateChart() {
     chart1.selectAll("*").remove();
 
     // Recreate the chart with new x and y attributes
-    const width = 460 - 40 - 30; // width = 460 - margin.left - margin.right
-    const height = 450 - 10 - 90; // height = 450 - margin.top - margin.bottom
+    const width = 600 - 40 - 30; // width = 460 - margin.left - margin.right
+    const height = 600 - 10 - 90; // height = 450 - margin.top - margin.bottom
     const margin = { top: 10, right: 30, bottom: 90, left: 40 };
     createChart1(parsedData, width, height, margin, selectedXAttr, selectedYAttr);
 }
@@ -101,15 +104,35 @@ function createChart1(data, width, height, margin, xAttr, yAttr) {
     y.domain([0, d3.max(data, d => d[yAttr])]);
 
     // Append the rectangles for the bar chart
-    chart1.selectAll(".bar")
-        .data(data)
-        .enter().append("rect")
+chart1.selectAll(".bar")
+.data(data)
+.join(
+    enter => enter.append("rect")
         .attr("class", "bar")
         .attr("x", d => x(d[xAttr]))
         .attr("width", x.bandwidth())
+        .attr("y", height) // Start from the bottom
+        .attr("height", 0) // Start with height 0
+        .style("fill", "orange")
+        .transition() // Transition for the enter selection
+        .duration(800)
         .attr("y", d => y(d[yAttr]))
-        .attr("height", d => height - y(d[yAttr]))
-        .style("fill", "orange");
+        .attr("height", d => height - y(d[yAttr])),
+    update => update
+        .transition() // Transition for the update selection
+        .duration(800)
+        .attr("x", d => x(d[xAttr]))
+        .attr("width", x.bandwidth())
+        .attr("y", d => y(d[yAttr]))
+        .attr("height", d => height - y(d[yAttr])),
+    exit => exit
+        .transition() // Transition for the exit selection
+        .duration(800)
+        .attr("y", height)
+        .attr("height", 0)
+        .remove()
+);
+
 
     // Add the x Axis
     chart1.append("g")
@@ -149,9 +172,21 @@ function createChart1(data, width, height, margin, xAttr, yAttr) {
 
 ///--------------------Choropleth MAP --------------------------
 
+function updateMapColors() {
+    const test =svg.selectAll("path")
+       .attr("fill", function(d) {
+           const state = d.properties.st_nm;
+           const index = selectedStates.findIndex(s => s.name === state);
+           if (index === 0) return 'red';
+           if (index === 1) return 'yellow';
+           return colorScale(d.properties.pH);  // Original color based on pH
+       });
+}
+
+
 function initChoroplethMap(parsedData) {
-    const width = 950;
-    const height = 600;
+    const width = 600;
+    const height = 580;
     const svg = d3.select("#choroplethMap").append("svg")
         .attr("width", width)
         .attr("height", height);
@@ -171,11 +206,8 @@ function initChoroplethMap(parsedData) {
     d3.json("states_india.geojson").then(geojson => {
         geojson.features.forEach(feature => {
             const state = feature.properties.st_nm; 
-            console.log(state);
             const stateData = parsedData.find(d => d.STATE.trim().toLowerCase() === state.trim().toLowerCase());
-            console.log("HHMMMM : " + stateData);
             feature.properties.pH = stateData ? +stateData.PH : "No data";
-            console.log(feature.properties.pH);
         });
 
        
@@ -200,9 +232,78 @@ function initChoroplethMap(parsedData) {
             .on("mouseout", function(event, d) {
                 d3.select(this).attr("fill", colorScale(d.properties.pH));
                 tooltip.style("visibility", "hidden");
+            })
+            .on("click", function(event, d) {
+                const stateName = d.properties.st_nm;
+                const index = selectedStates.findIndex(state => state.name === stateName);
+            
+                if (index === -1) {
+                    if (selectedStates.length < 2) {
+                        const stateData = parsedData.find(data => data.STATE.trim().toLowerCase() === stateName.toLowerCase());
+                        if (stateData) {
+                            selectedStates.push({ name: stateName, data: stateData });
+                        }
+                    }
+                } else {
+                    selectedStates.splice(index, 1);
+                }
+            
+                updateRadarChart();
+                updateMapColors();
             });
+            
+            
+            
     });
 }
+
+
+//----------------------------RADAR CHART ! --------------------------------------
+
+
+
+function initializeRadarChart(ctx) {
+    radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: null,
+        options: {
+            elements: {
+                line: {
+                    borderWidth: 3
+                }
+            },
+            scale: {
+                ticks: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function updateRadarChart() {
+    const labels = ["PH", "Temp", "D.O. (mg/l)", "B.O.D. (mg/l)", "CONDUCTIVITY (µmhos/cm)", "NITRATENAN N+ NITRITENANN (mg/l)", "FECAL COLIFORM (MPN/100ml)", "TOTAL COLIFORM (MPN/100ml)Mean"];
+    const datasets = selectedStates.map((state, index) => {
+        const color = index === 0 ? 'rgba(255, 0, 0, 0.5)' : 'rgba(255, 255, 0, 0.5)';  // Red for the first, yellow for the second
+        return {
+            label: `${state.name} Water Quality Indicators`,
+            data: labels.map(label => state.data[label]),
+            fill: true,
+            backgroundColor: color,
+            borderColor: color,
+            pointBackgroundColor: color,
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: color
+        };
+    });
+
+    if (!radarChart) {
+        initializeRadarChart(document.getElementById('radarChart').getContext('2d'));
+    }
+    radarChart.data.labels = labels;
+    radarChart.data.datasets = datasets;
+    radarChart.update();
+}
+
 
 
 

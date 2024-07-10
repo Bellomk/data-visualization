@@ -1,7 +1,45 @@
 body {
-    height: 100%;
-    margin: 0;
-    font: 14px sans-serif;
+    background-color: #f4f7f6; /* Soft gray background */
+    color: #3a4042; /* Dark slate gray text */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* General styling for container elements */
+.container {
+    background-color: #ffffff; /* White background for content areas */
+    border: 1px solid #c1e1e0; /* Light teal border */
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* Headers within containers */
+h2 {
+    color: #ef8354; /* Coral color for headers to draw attention */
+}
+
+/* Navigation and interactive elements */
+.tablink, button {
+    background-color: #4eaba6; /* Teal background for interactive elements */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.tablink:hover, button:hover {
+    background-color: #ef8354; /* Coral for hover states */
+}
+
+
+
+/* Legends and labels within charts */
+#legend, #scatterLegend {
+    background-color: #ffffff; /* White background for clarity */
+    border: 1px solid #c1e1e0; /* Light teal border */
+    padding: 5px;
 }
 
 #credits {
@@ -35,6 +73,11 @@ body {
     background-color: #777;
 }
 
+.hovered-cell {
+    background-color: #2200ff;
+    color: white;
+}
+
 /* Style the tab content (and add height:100% for full page content) */
 .tabcontent {
     color: black;
@@ -42,6 +85,7 @@ body {
     padding: 100px 20px;
     height: 100%;
 }
+
 
 .dataTableClass {
     width: 80%;
@@ -62,16 +106,27 @@ body {
     padding: 5px;
 }
 
+.dataTableClass td {
+    transition: background-color 0.3s; /* Smooth transition for background color */
+}
+
+.dataTableClass td:hover {
+    background-color: #777; /* Gray background on hover */
+}
+
 svg {
     font: 10px sans-serif;
 }
 
-.container {
+.container1 {
     display: table-cell;
     vertical-align: top;
     height: 100%;
     padding: 10px;
-    border: 0px solid black;
+    background-color: #ffffff; /* White background for content areas */
+    border: 1px solid #c1e1e0; /* Light teal border */
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
 }
 
 .dashboardGrid {
@@ -118,6 +173,16 @@ fieldset {
     cursor: pointer;
 }
 
+
+#selectedStatesContainer {
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #f4f4f4;
+    border: 1px solid #ccc;
+}
+
+
+
 /* the style for the circle in the legend */
 .color-circle {
     display: inline-block;
@@ -146,4 +211,9 @@ div.tooltip {
     border-radius: 8px;
     pointer-events: none;
     font-size: .7rem;
+}
+
+#radarChart {
+    width: 750px;  /* or any other dimensions you prefer */
+    height: 600px;
 }

@@ -22,6 +22,9 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <!-- include topojson -->
     <script src="https://d3js.org/topojson.v1.min.js"></script>
+    <!-- include chartjs-->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
     <!-- include jQueryUI -->
     <script src="https://code.jquery.com/jquery-3.6.1.js"></script>
@@ -41,9 +44,11 @@
 
 <!-- credits -->
 <div id="credits">
+    <centre>
     Created by <span class="instructions">Mohamed Rami Mesfar & Mohamed Elbeltagui</span>
     for the Data Visualization Lecture at <a href="https://www.fim.uni-passau.de/digitale-bildverarbeitung"> Faculty of Computer
     Science and Mathematics - Chair of Cognitive sensor systems - University of Passau</a>.
+    </centre>
 </div>
 
 <!-- create buttons to select tabs -->
@@ -66,7 +71,7 @@
 <div id="BasicVisualization" class="tabcontent">
 
     <!-- scatterplot -->
-    <div class="container">
+    <div class="container1">
         <!-- scatterplot menu -->
         <h2>Scatterplot</h2>
 
@@ -90,23 +95,22 @@
         </div>
         <!-- scatterplot SVG -->
         <div id="sp"></div>
+        <div id="scatterLegend">Scatterplot Info</div>
     </div>
 
     <!-- radar chart -->
-    <div class="container">
+    <div class="container1">
         <h2>Radar Chart</h2>
         <!-- radar chart SVG -->
         <div id="radar"></div>
-        <div id="legend">
-            <b>Legend:</b><br/>
-        </div>
+        <div id="legend">Radar Chart Legend</div>
     </div>
 
 </div>
 
 <!-- Tab 3 -->
 <div id="Dashboard" class="tabcontent">
-    <h1>Dashboard Example</h1>
+    <h1>India's water quality</h1>
 
     <!-- TODO: The environment of your dashboard can be freely customized. Here is a general layout to get you started. -->
 
@@ -115,8 +119,7 @@
 
         <!-- chart 1 -->
         <div class="container">
-            <h2>Chart 1</h2>
-            <h4>Data representation 1.</h4>
+            <h2>India's water components by Year and State</h2>
             <div>
                 <label for="xAxisSelect">X-Axis:</label>
                 <div id="xDropdown"></div>
@@ -132,7 +135,7 @@
 
         <!-- chart 2 -->
         <div class="container">
-            <h2>Choropleth Map</h2>
+            <h2>India's Map and the pH% per State</h2>
             <div id="choroplethMap"></div>
         </div>
 
@@ -140,18 +143,16 @@
 
         <!-- chart 3 -->
         <div class="container">
-            <h2>Chart 3</h2>
-			  <h4>Data representation 3.</h4>
-            <!-- radar chart SVG -->
-            <div id="chart3"></div>
+            <h2>State Detailed Overview & Comparison</h2>
+            <canvas id="radarChart"></canvas>
         </div>
+        
+        
 
         <!-- chart 4 -->
-        <div class="container">
-            <h2>Chart 4</h2>
-            <h4>Data representation 4.</h4>
-            <!-- radar chart SVG -->
-            <div id="chart4"></div>
+        <div id="timeSeriesContainer" class="container">
+            <h2>Time Series Chart</h2>
+            <svg id="timeSeriesChart"></svg>
         </div>
 
     </div>
