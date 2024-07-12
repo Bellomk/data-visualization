@@ -1,7 +1,60 @@
-let chart1, chart2, radarChart;
+let chart1, chart2, radarChart, bubblechart;
 let selectedStates = [];
 
+function getDataSum(data, attribute) {
+    const sum = data.reduce((sum, row) => sum + row[attribute], 0)
+    console.log(sum)
+    return sum
+}
 
+function calculateStateAverages(data, attribute) {
+    // Create a map to store the sum and count of the attribute values for each state
+    const stateSums = {};
+    const stateCounts = {};
+  
+    // Iterate over the data to populate the stateSums and stateCounts
+    data.forEach(row => {
+        // console.log(row.STATE);
+      const state = row.STATE;
+      const value = row[attribute];
+  
+      if (!stateSums[state]) {
+        stateSums[state] = 0;
+        stateCounts[state] = 0;
+      }
+  
+      stateSums[state] += value;
+      stateCounts[state] += 1;
+    });
+  
+    // Calculate the average for each state
+    const stateAverages = Object.keys(stateSums).map(state => {
+      return {
+        state: state,
+        average: stateSums[state] / stateCounts[state],
+        attribute: attribute
+      };
+    });
+  
+    return stateAverages;
+}
+
+function getRadiusFromArea(area) {
+    if (area < 0) {
+        console.log(area)
+        console.log("Area must be a positive number");
+    }
+    else{
+        return Math.sqrt(area / Math.PI);
+    }
+}
+
+function addPropertyToObjects(array, newPropertyName, newValue) {
+    return array.map(obj => {
+        obj[newPropertyName] = newValue;
+        return obj;
+    });
+}
 
 
 function initDashboard(parsedData) {
@@ -24,11 +77,16 @@ function initDashboard(parsedData) {
 
     // Create the first chart with initial x and y attributes
     const initialXAttr = ["STATE"];
-    const initialYAttr = ["PH"];
+    const initialYAttr = ["Temp"];
     createChart1(parsedData, width, height, margin, initialXAttr, initialYAttr);
     initChoroplethMap(parsedData);
     
- 
+    bubblechart = d3.select("#bubblechart").append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    initbubbleDropDown();
+    createbubblechart(parsedData, width, height, margin, initialYAttr);
 
 }
 
@@ -312,4 +370,148 @@ function updateRadarChart() {
 
 function clearDashboard() {
     if (chart1) chart1.selectAll("*").remove();
+}
+
+
+//------------------------Bubble Chart-----------------------
+
+function initbubbleDropDown(){
+    const bubbleattributes = ["Temp","D.O. (mg/l)" ,"PH" ,"CONDUCTIVITY (Âµmhos/cm)" ,"B.O.D. (mg/l)" ,"NITRATENAN N+ NITRITENANN (mg/l)" ,"FECAL COLIFORM (MPN/100ml)", "TOTAL COLIFORM (MPN/100ml)Mean"];
+
+    const bubbledropdown = d3.select("#bubbledropdown")
+        .append("select")
+        .attr("id", "bubbleselect")
+        .on("change", updatebubbleChart);
+
+    bubbledropdown.selectAll("option")
+        .data(bubbleattributes)
+        .enter()
+        .append("option")
+        .attr("value", d => d)
+        .text(d => d);
+}
+
+function updatebubbleChart() {
+    // Get selected attribute
+    const selectedAttr = d3.select("#bubbleselect").node().value;
+
+    // Clear the existing chart
+    bubblechart.selectAll("*").remove();
+
+    // Recreate the chart with new x and y attributes
+    const margin = { top: 10, right: 30, bottom: 90, left: 40 };
+    const width = 600 - margin.left - margin.right; // width = 460 - margin.left - margin.right
+    const height = 600 - margin.top - margin.bottom; // height = 450 - margin.top - margin.bottom
+    
+    createbubblechart(parsedData, width, height, margin, selectedAttr);
+}
+
+function createbubblechart(data, width, height, margin, attribute) {
+    // const bubblechartwidth = width - margin.left - margin.right;
+    // const bubblechartheight = height - margin.top - margin.bottom;
+    
+    // location to centre the bubbles
+    const bubblechartcentre = { x: width/2, y: height/2 };
+
+    // strength to apply to the position forces
+    const forceStrength = 0.03;
+
+    // these will be set in createNodes and chart functions
+    // let svg = null;
+    let bubbles = null;
+    let labels = null;
+    // let nodes = [];
+
+    // charge is dependent on size of the bubble, so bigger towards the middle
+    function charge(d) {
+        return Math.pow(d.radius, 2.0) * 0.01
+    }
+
+    // create a force simulation and add forces to it
+    const simulation = d3.forceSimulation()
+      .force('charge', d3.forceManyBody().strength(charge))
+      // .force('center', d3.forceCenter(centre.x, centre.y))
+      .force('x', d3.forceX().strength(forceStrength).x(bubblechartcentre.x))
+      .force('y', d3.forceY().strength(forceStrength).y(bubblechartcentre.y))
+      .force('collision', d3.forceCollide().radius(d => d.radius + 30));
+
+    // force simulation starts up automatically, which we don't want as there aren't any nodes yet
+    simulation.stop();
+
+    const bubblechartarea = height * width;
+    const drawingarea = 0.4 * bubblechartarea
+
+    // bubblechart = d3.select("#bubblechart").append("svg")
+    //     .attr("width", bubblechartwidth)
+    //     .attr("height", bubblechartheight);
+
+    data.forEach(d => {
+        d[attribute] = +d[attribute];
+    });
+
+    const stateaverages = calculateStateAverages(data, attribute);
+    const statesum = getDataSum(stateaverages, "average");
+    stateaverages.forEach(item => item["relativearea"] = (item.average / statesum) * drawingarea);
+    stateaverages.forEach(item => item["radius"] = getRadiusFromArea(item.relativearea / drawingarea));
+    stateaverages.forEach(item => item["x"] = Math.random() * 900);
+    stateaverages.forEach(item => item["y"] = Math.random() * 800);
+
+    const minradius = d3.min(stateaverages, d => +d.radius);
+    const maxradius = d3.max(stateaverages, d => +d.radius);
+    const maxrelativearea = d3.max(stateaverages, d => d.relativearea)
+    console.log(getRadiusFromArea(maxrelativearea), maxrelativearea)
+
+    // set up colour scale
+    const fillColour = d3.scaleOrdinal()
+        .domain(stateaverages.map(item => item.state))
+        .range(d3.schemeAccent);
+
+    const radiusScale = d3.scaleSqrt()
+        .domain([minradius, maxradius])
+        .range([0, getRadiusFromArea(maxrelativearea)])
+
+    const bubbleg = bubblechart.selectAll('.bubble')
+        .data(stateaverages, d => d.state)
+        .enter()
+        .append('g')
+        .attr("transform", `translate(${margin.left},${margin.top})`)
+    
+    bubbles = bubbleg.append("circle")
+        .attr("class", "bubble")
+        .attr("r", d => radiusScale(d.radius))
+        .attr("fill", d => fillColour(d.state))
+
+    labels = bubbleg
+        .append('text')
+        .attr('dy', '.3em')
+        .style('text-anchor', 'middle')
+        .style('font-size', 10)
+        .text(d => d.state)
+
+    console.log(stateaverages);
+
+    simulation.nodes(stateaverages)
+        .on('tick', ticked)
+        .restart();
+
+    function ticked() {
+        bubbles
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y)
+    
+        labels
+            .attr('x', d => d.x)
+            .attr('y', d => d.y)
+    }
+    // // Create the pack layout
+    // const pack = d3.pack()
+    // .size([bubblewidth - bubblepadding, bubbleheight - bubblepadding])
+    // .padding(5);
+
+    // // Create the hierarchy from the data
+    // const hierarchy = d3.hierarchy({children: sortedData})
+    // .sum(d => d.Population);
+
+    // // Compute the pack layout
+    // const root = pack(hierarchy);
 }
